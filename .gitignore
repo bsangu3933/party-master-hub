@@ -1,0 +1,60 @@
+# ============================================================
+# Party Master Data Hub — .gitignore
+# ============================================================
+
+# --- Sensitive config (NEVER commit these) ---
+config/.env
+config/*.env
+*.env
+.env
+
+# --- Python virtual environment ---
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# --- Data files (too large and contain fake PII) ---
+data/raw/
+data/golden/
+*.csv
+*.parquet
+*.json.gz
+
+# --- Jupyter notebooks checkpoints ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- VS Code settings ---
+.vscode/
+*.code-workspace
+
+# --- Pytest / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# --- Great Expectations ---
+great_expectations/uncommitted/
+
+# --- Logs ---
+logs/
+*.log
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Spark local files ---
+derby.log
+metastore_db/
+spark-warehouse/
