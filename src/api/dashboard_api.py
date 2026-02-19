@@ -22,7 +22,6 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-VENV_PYTHON = str(BASE_DIR / 'venv' / 'Scripts' / 'python.exe')
 sys.path.append(str(BASE_DIR))
 
 from dotenv import load_dotenv
@@ -308,7 +307,7 @@ def trigger_pipeline_step(step: str, background_tasks: BackgroundTasks):
         try:
             script = PIPELINE_SCRIPTS[step_name]
             result = subprocess.run(
-                [VENV_PYTHON, str(script)],
+                ['python', str(script)],
                 capture_output=True,
                 text=True,
                 timeout=300,
@@ -527,11 +526,12 @@ def get_s3_files():
 @app.get("/system/s3/preview/{zone}/{path:path}", tags=["System"])
 def preview_s3_file(zone: str, path: str):
     """
-    Preview first 10 rows of a Parquet file from S3.
-    Powers the file preview feature in the S3 Explorer panel.
+    Preview first 10 rows of any file from S3.
+    Supports both Parquet and CSV files automatically.
     """
     import pyarrow.parquet as pq
     import io
+    import csv as csv_lib
 
     bucket_map = {
         'raw':     S3_RAW_BUCKET,
@@ -545,15 +545,52 @@ def preview_s3_file(zone: str, path: str):
     s3 = get_s3_client()
     try:
         response = s3.get_object(Bucket=bucket_map[zone], Key=path)
-        buffer   = io.BytesIO(response['Body'].read())
-        table    = pq.read_table(buffer)
-        df       = table.to_pandas().head(10)
-        return {
-            'file':        path,
-            'total_rows':  len(table),
-            'columns':     list(df.columns),
-            'preview':     df.fillna('').to_dict(orient='records'),
-        }
+        raw_bytes = response['Body'].read()
+
+        # Handle CSV files
+        if path.lower().endswith('.csv'):
+            import io as io_mod
+            text    = raw_bytes.decode('utf-8', errors='replace')
+            reader  = csv_lib.DictReader(io_mod.StringIO(text))
+            rows    = []
+            columns = None
+            for i, row in enumerate(reader):
+                if i == 0:
+                    columns = list(row.keys())
+                if i >= 10:
+                    break
+                rows.append(dict(row))
+            # Count total rows
+            total = text.count('\n') - 1
+            return {
+                'file':       path,
+                'format':     'csv',
+                'total_rows': total,
+                'columns':    columns or [],
+                'preview':    rows,
+            }
+
+        # Handle Parquet files
+        elif path.lower().endswith('.parquet'):
+            buffer = io.BytesIO(raw_bytes)
+            table  = pq.read_table(buffer)
+            df     = table.to_pandas().head(10)
+            return {
+                'file':       path,
+                'format':     'parquet',
+                'total_rows': len(table),
+                'columns':    list(df.columns),
+                'preview':    df.fillna('').astype(str).to_dict(orient='records'),
+            }
+
+        else:
+            return {
+                'file':    path,
+                'format':  'unsupported',
+                'message': f'Preview not supported for this file type',
+                'preview': [],
+            }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
