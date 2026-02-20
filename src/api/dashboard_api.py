@@ -21,7 +21,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, List
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR    = Path(__file__).resolve().parent.parent.parent
+VENV_PYTHON = str(BASE_DIR / 'venv' / 'Scripts' / 'python.exe')
 sys.path.append(str(BASE_DIR))
 
 from dotenv import load_dotenv
@@ -307,7 +308,7 @@ def trigger_pipeline_step(step: str, background_tasks: BackgroundTasks):
         try:
             script = PIPELINE_SCRIPTS[step_name]
             result = subprocess.run(
-                ['python', str(script)],
+                [VENV_PYTHON, str(script)],
                 capture_output=True,
                 text=True,
                 timeout=300,
