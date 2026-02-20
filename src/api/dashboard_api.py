@@ -22,8 +22,11 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 
 BASE_DIR    = Path(__file__).resolve().parent.parent.parent
-VENV_PYTHON = str(BASE_DIR / 'venv' / 'Scripts' / 'python.exe')
 sys.path.append(str(BASE_DIR))
+
+# Use venv Python locally, system Python inside Docker container
+_venv_python = BASE_DIR / 'venv' / 'Scripts' / 'python.exe'
+VENV_PYTHON  = str(_venv_python) if _venv_python.exists() else sys.executable
 
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=BASE_DIR / 'config' / '.env')
