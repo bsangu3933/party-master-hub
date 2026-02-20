@@ -1,0 +1,32 @@
+# ============================================================
+# Dockerfile — Party Master Control Center React Dashboard
+# Multi-stage build:
+#   Stage 1: Build React app with Node.js
+#   Stage 2: Serve static files with Nginx (no Node.js needed)
+# ============================================================
+
+# Stage 1 — Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy entire dashboard folder
+COPY dashboard/ ./
+
+# Install dependencies and build
+RUN npm install --silent
+RUN npm run build
+
+# Stage 2 — Serve with Nginx
+FROM nginx:alpine
+
+# Copy built React files
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copy Nginx config
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:80 || exit 1

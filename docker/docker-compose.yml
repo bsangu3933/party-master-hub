@@ -2,7 +2,6 @@ services:
 
   # -------------------------------------------------------
   # PostgreSQL — simulates AWS RDS Aurora/Postgres
-  # This is where golden (master) party records are stored
   # -------------------------------------------------------
   postgres:
     image: postgres:15
@@ -40,7 +39,6 @@ services:
 
   # -------------------------------------------------------
   # Apache Kafka — simulates AWS MSK / Kinesis
-  # Handles real-time party data event streams
   # -------------------------------------------------------
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -87,8 +85,7 @@ services:
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
   # -------------------------------------------------------
-  # LocalStack — emulates AWS services locally (S3, Lambda,
-  # EventBridge, Glue, etc.) without needing an AWS account
+  # LocalStack — emulates AWS S3, Lambda, EventBridge etc.
   # Access at: http://localhost:4566
   # -------------------------------------------------------
   localstack:
@@ -113,7 +110,7 @@ services:
       retries: 5
 
   # -------------------------------------------------------
-  # pgAdmin — browser-based PostgreSQL GUI (optional but useful)
+  # pgAdmin — browser-based PostgreSQL GUI
   # Access at: http://localhost:5050
   # Login: admin@party.com / admin
   # -------------------------------------------------------
@@ -130,6 +127,68 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+
+  # -------------------------------------------------------
+  # FastAPI — Party Master Data Hub REST API
+  # Access at: http://localhost:8000
+  # Swagger UI: http://localhost:8000/docs
+  # -------------------------------------------------------
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: party_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://party_admin:party_secret@postgres:5432/party_master_db
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      S3_RAW_BUCKET: party-raw-zone
+      S3_CURATED_BUCKET: party-curated-zone
+      S3_GOLDEN_BUCKET: party-golden-zone
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC_PARTY_EVENTS: party.events.raw
+      KAFKA_TOPIC_PARTY_UPDATES: party.events.updates
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # -------------------------------------------------------
+  # React Dashboard — Party Master Control Center
+  # Built with Node.js, served by Nginx (no Node in prod)
+  # Access at: http://localhost:3000
+  # -------------------------------------------------------
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: party_dashboard
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   postgres_data:

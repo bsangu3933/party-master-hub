@@ -4,7 +4,8 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveCo
 // ============================================================
 // CONFIG
 // ============================================================
-const API_BASE = "http://localhost:8000";
+//const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
 // ============================================================
